@@ -6,11 +6,11 @@ import Levenshtein as leven
 #Return a ", " separated string of the location
 def concatenate_location(city, state, country):
     location_list = []
-    if(city!=''):
+    if(city):
         location_list.append(city)
-    if(state!=''):
+    if(state):
         location_list.append(state)
-    if(country!=''):
+    if(country):
         location_list.append(country)
     location = ", ".join(location_list)
     return location
