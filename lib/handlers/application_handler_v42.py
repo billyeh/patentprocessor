@@ -40,7 +40,7 @@ class Patent(PatentHandler):
         self.xml = xh.root.us_patent_application
 
         self.country = self.xml.publication_reference.contents_of('country', upper=False)[0]
-        self.application = xml_util.normalize_document_identifier(self.xml.publication_reference.contents_of('doc_number')[0])
+        self.application = xml_util.normalize_document_identifier(self.xml.application_reference.contents_of('doc_number')[0])
         self.kind = self.xml.publication_reference.contents_of('kind')[0]
         if self.xml.application_reference:
             self.pat_type = self.xml.application_reference[0].get_attribute('appl-type', upper=False)
@@ -63,6 +63,7 @@ class Patent(PatentHandler):
             "num_claims": self.clm_num
         }
         self.app["id"] = str(self.app["date"])[:4] + "/" + self.app["number"]
+        print('42: ' + self.app['id'] + ' ' + self.app['number'])
 
     def _invention_title(self):
         original = self.xml.contents_of('invention_title', upper=False)[0]
