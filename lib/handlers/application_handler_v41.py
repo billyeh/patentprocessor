@@ -63,7 +63,6 @@ class Patent(PatentHandler):
             "num_claims": self.clm_num
         }
         self.app["id"] = str(self.app["date"])[:4] + "/" + self.app["number"]
-        print('41: ' + self.app['id'] + ' ' + self.app['number'])
 
     def _invention_title(self):
         original = self.xml.contents_of('title_of_invention', upper=False)[0]
