@@ -71,7 +71,7 @@ class Patent(PatentHandler):
             self.country = filter(lambda x: not isinstance(x, list), self.xml.contents_of('country_code'))[0]
         else:
             self.country = ''
-        self.application = xml_util.normalize_document_identifier(self.xml.document_id.contents_of('doc_number')[0])
+        self.application = xml_util.normalize_document_identifier(self.xml.application_number.contents_of('doc_number')[0])
         self.kind = self.xml.document_id.contents_of('kind_code')[0]
         self.pat_type = None
         self.date_app = self.xml.document_id.contents_of('document_date')[0]
@@ -91,6 +91,7 @@ class Patent(PatentHandler):
             "num_claims": self.clm_num
         }
         self.app["id"] = str(self.app["date"])[:4] + "/" + self.app["number"]
+        print('41: ' + self.app['id'] + ' ' + self.app['number'])
 
     def _invention_title(self):
         original = self.xml.contents_of('title_of_invention', upper=False)[0]
