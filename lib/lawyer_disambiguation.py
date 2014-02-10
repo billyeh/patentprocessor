@@ -52,7 +52,7 @@ def clean_lawyers(list_of_lawyers):
     Then, blocks the lawyer with other lawyers that start
     with the same letter. Returns a list of these blocks
     """
-    stoplist = ['the', 'of', 'and', 'a', 'an', 'at']
+    stoplist = set(['the', 'of', 'and', 'a', 'an', 'at'])
     #alpha_blocks = defaultdict(list)
     block = []
     print 'Removing stop words, blocking by first letter...'

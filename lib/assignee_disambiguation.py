@@ -53,7 +53,7 @@ def clean_assignees(list_of_assignees):
     Then, blocks the assignee with other assignees that start
     with the same letter. Returns a list of these blocks
     """
-    stoplist = ['the', 'of', 'and', 'a', 'an', 'at']
+    stoplist = set(['the', 'of', 'and', 'a', 'an', 'at'])
     #alpha_blocks = defaultdict(list)
     block = []
     print 'Removing stop words, blocking by first letter...'
