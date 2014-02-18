@@ -74,7 +74,7 @@ class Patent(PatentHandler):
         self.application = xml_util.normalize_document_identifier(self.xml.application_number.contents_of('doc_number')[0])
         self.kind = self.xml.document_id.contents_of('kind_code')[0]
         self.pat_type = None
-        self.date_app = self.xml.document_id.contents_of('document_date')[0]
+        self.date_app = self.xml.domestic_filing_data.contents_of('filing_date')[0]
         self.clm_num = len(self.xml.subdoc_claims.claim)
         self.abstract = self.xml.subdoc_abstract.contents_of('paragraph', '', as_string=True, upper=False)
         self.invention_title = self._invention_title()
