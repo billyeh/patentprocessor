@@ -61,7 +61,7 @@ def generate_download_list(years, doctype='grant'):
     for year in years:
         header = soup.find('h3', {'id': str(year)})
         a = header.findNext()
-        while a.name != 'h3':
+        while a.name != 'h3' and a.name != 'div':
             urls.append(a['href'])
             a = a.findNext()
     return urls

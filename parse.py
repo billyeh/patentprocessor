@@ -20,7 +20,11 @@ def list_files(patentroot, xmlregex):
     Returns listing of all files within patentroot
     whose filenames match xmlregex
     """
-    files = [patentroot+'/'+fi for fi in os.listdir(patentroot)
+    try:
+        old_zip_files = ['PGPUBprod/' + fi for fi in os.listdir(patentroot + '/PGPUBprod')]
+    except OSError:
+        old_zip_files = []
+    files = [patentroot + '/' + fi for fi in (os.listdir(patentroot) + old_zip_files)
              if re.search(xmlregex, fi, re.I) is not None]
     if not files:
         logging.error("No files matching {0} found in {1}".format(xmlregex, patentroot))
