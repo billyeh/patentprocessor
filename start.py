@@ -82,8 +82,11 @@ def download_files(urls):
     print 'downloading to',downloaddir
     for url in urls:
         filename = url.split('/')[-1].replace('zip','xml')
-        if filename in (os.listdir(downloaddir) + 
-                        os.listdir(downloaddir + '/PGPUBprod')):
+        try:
+            old_files = os.listdir(downloaddir + '/PGPUBprod')
+        except OSError:
+            old_files = []
+        if filename in (os.listdir(downloaddir) + old_files):
             print 'already have',filename
             continue
         print 'downloading',url
