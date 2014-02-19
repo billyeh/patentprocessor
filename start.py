@@ -110,7 +110,8 @@ def download_files(urls):
     print 'downloading to',downloaddir
     for url in urls:
         filename = url.split('/')[-1].replace('zip','xml')
-        if filename in os.listdir(downloaddir):
+        if filename in (os.listdir(downloaddir) + 
+                        os.listdir(downloaddir + '/PGPUBprod')):
             print 'already have',filename
             continue
         print 'downloading',url
