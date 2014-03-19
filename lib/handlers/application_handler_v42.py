@@ -54,7 +54,7 @@ class Patent(PatentHandler):
         self.app = {
             "id": self.application,
             "type": self.pat_type,
-            "number": self.application[2:],
+            "number": self.application[:2] + '/' + self.application[2:],
             "country": self.country,
             "date": self._fix_date(self.date_app),
             "abstract": self.abstract,
@@ -62,7 +62,7 @@ class Patent(PatentHandler):
             "kind": self.kind,
             "num_claims": self.clm_num
         }
-        self.app["id"] = self.application[:2] + "/" + self.application[2:]
+        self.app["id"] = str(self.date_app)[:4] + '/' + self.application
 
     def _invention_title(self):
         original = self.xml.contents_of('invention_title', upper=False)[0]

@@ -294,11 +294,11 @@ def add_application(obj, override=True, temp=False):
     """
 
     # if the application exists, remove it so we can replace it
-    (app_exists, ), = appsession.query(exists().where(schema.App_Application.number == obj.application))
+    (app_exists, ), = appsession.query(exists().where(schema.App_Application.number == obj.application[:2] + '/' + obj.application[2:]))
     if app_exists:
         if override:
-            app_query = appsession.query(schema.App_Application).filter(schema.App_Application.number == obj.application)
-            appsession.delete(app_query.one())
+            app_query = appsession.query(schema.App_Application).filter(schema.App_Application.number == obj.application[:2] + '/' + obj.application[2:])
+            app_query.delete()
         else:
             return
     if len(obj.app["number"]) < 3:
