@@ -1,4 +1,41 @@
 #!/usr/bin/env python
+"""
+Copyright (c) 2013 The Regents of the University of California, AMERICAN INSTITUTES FOR RESEARCH
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+"""
+@author Gabe Fierro gt.fierro@berkeley.edu github.com/gtfierro
+"""
+"""
+Parses USPTO released XML dumps of granted patents and published applications
+according to the handlers in lib/handlers/ and inserts the parsed records
+into the database indicated by lib/alchemy/config.ini.
+
+This file can be called directly `python parse.py <flags>` or can be configured
+by process.cfg and called by `python start.py process.cfg`. See process.cfg
+for explanation of configuration options
+"""
 
 import logging
 import os
@@ -129,7 +166,6 @@ def parse_patent(xmltuple, doctype='grant'):
     return patent.get_patobj()
 
 
-# TODO: this should only move alchemy.sqlite3
 def move_tables(output_directory):
     """
     Moves the output sqlite3 files to the output directory
