@@ -158,7 +158,7 @@ def join(oldfile, newfile):
 if __name__ == '__main__':
     if len(sys.argv) < 2:
       print "Provide path to previous disambiguation output"
-      pritn "USAGE: python consolidate.py <path/to/old/disambiguation/output.tsv>"
+      print "USAGE: python consolidate.py <path/to/old/disambiguation/output.tsv>"
       sys.exit(1)
     prev_output = sys.argv[1]
     for year in range(1975, datetime.today().year+1):
