@@ -164,6 +164,11 @@ def join(newfile):
     merged.to_csv('disambiguator_{0}.tsv'.format(datetime.now().strftime('%B_%d')), index=False, header=None, sep='\t')
 
 if __name__ == '__main__':
+    if len(sys.argv) < 2:
+      print "Provide path to previous disambiguation output"
+      print "USAGE: python consolidate.py <path/to/old/disambiguation/output.tsv>"
+      sys.exit(1)
+    prev_output = sys.argv[1]
     for year in range(1975, datetime.today().year+1):
         print 'Running year',year,datetime.now(),'for grant'
         main(year, 'grant')

@@ -89,7 +89,7 @@ def generate_download_list(years, doctype='grant'):
     for year in years:
         header = soup.find('h3', {'id': str(year)})
         a = header.findNext()
-        while a.name != 'h3':
+        while a.name != 'h3' and a.name != 'div':
             urls.append(a['href'])
             a = a.findNext()
     return urls
@@ -110,7 +110,11 @@ def download_files(urls):
     print 'downloading to',downloaddir
     for url in urls:
         filename = url.split('/')[-1].replace('zip','xml')
-        if filename in os.listdir(downloaddir):
+        try:
+            old_files = os.listdir(downloaddir + '/PGPUBprod')
+        except OSError:
+            old_files = []
+        if filename in (os.listdir(downloaddir) + old_files):
             print 'already have',filename
             continue
         print 'downloading',url

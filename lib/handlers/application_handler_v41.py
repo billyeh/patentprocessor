@@ -71,10 +71,10 @@ class Patent(PatentHandler):
             self.country = filter(lambda x: not isinstance(x, list), self.xml.contents_of('country_code'))[0]
         else:
             self.country = ''
-        self.application = xml_util.normalize_document_identifier(self.xml.document_id.contents_of('doc_number')[0])
+        self.application = xml_util.normalize_document_identifier(self.xml.application_number.contents_of('doc_number')[0])
         self.kind = self.xml.document_id.contents_of('kind_code')[0]
         self.pat_type = None
-        self.date_app = self.xml.document_id.contents_of('document_date')[0]
+        self.date_app = self.xml.domestic_filing_data.contents_of('filing_date')[0]
         self.clm_num = len(self.xml.subdoc_claims.claim)
         self.abstract = self.xml.subdoc_abstract.contents_of('paragraph', '', as_string=True, upper=False)
         self.invention_title = self._invention_title()
@@ -82,7 +82,7 @@ class Patent(PatentHandler):
         self.app = {
             "id": self.application,
             "type": self.pat_type,
-            "number": self.application,
+            "number": self.application[2:] + '/' + self.application[2:],
             "country": self.country,
             "date": self._fix_date(self.date_app),
             "abstract": self.abstract,
@@ -90,7 +90,7 @@ class Patent(PatentHandler):
             "kind": self.kind,
             "num_claims": self.clm_num
         }
-        self.app["id"] = str(self.app["date"])[:4] + "/" + self.app["number"]
+        self.app["id"] = str(self.date_app)[:4] + '/' + self.application
 
     def _invention_title(self):
         original = self.xml.contents_of('title_of_invention', upper=False)[0]
