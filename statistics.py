@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import pymongo
 import pandas as pd
 import datetime
@@ -314,11 +316,11 @@ def check(name, new_stat, old_stat):
 if not latest_grant_stat:
     print('No prior grant stats found, comparison check not performed')
 else:
-    for name, stat in grant_stat:
+    for name, stat in grant_stat.iteritems():
         check(name, stat, latest_grant_stat[name])
 if not latest_app_stat:
     print('No prior app stats, found, comparison check not performed')
 else:
-    for name, stat in app_stat:
+    for name, stat in app_stat in app_state.iteritems():
         check(name, stat, latest_app_stat[name])
 
