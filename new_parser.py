@@ -1,27 +1,37 @@
-from lxml import etree
+#!/usr/bin/env python
 
-v45_xpaths = {
-    'country': '/us-patent-grant/us-bibliographic-data-grant/publication-reference/document-id/country',
-    'patent': '/us-patent-grant/us-bibliographic-data-grant/publication-reference/document-id/doc-number',
-    'kind': '/us-patent-grant/us-bibliographic-data-grant/publication-reference/document-id/kind',
-    'date_grant': '/us-patent-grant/us-bibliographic-data-grant/publication-reference/document-id/date',
-    'pat_type': '/us-patent-grant/us-bibliographic-data-grant/application-reference',
-    'date_app': '/us-patent-grant/us-bibliographic-data-grant/application-reference/document-id/date',
-    'country_app': '/us-patent-grant/us-bibliographic-data-grant/application-reference/document-id/country',
-    'patent_app': '/us-patent-grant/us-bibliographic-data-grant/application-reference/document-id/doc-number',
-    'code_app': '/us-patent-grant/us-bibliographic-data-grant/us-application-series-code',
-    'clm_num': '/us-patent-grant/us-bibliographic-data-grant/number-of-claims',
-    'abstract': '/us-patent-grant/abstract/p',
-    'invention_title': '/us-patent-grant/us-bibliographic-data-grant/invention-title',
-    'assignee_list': '/us-patent-grant/us-bibliographic-data-grant/assignees/assignee',
-    'citation_list': '/us-patent-grant/us-bibliographic-data-grant/us-references-cited/us-citation',
-    'inventor_list': '/us-patent-grant/us-bibliographic-data-grant/us-parties/inventors/inventor',
-    'lawyer_list': '/us-patent-grant/us-bibliographic-data-grant/us-parties/agents/agent',
-    'us_relation_list': '/us-patent-grant/us-bibliographic-data-grant/us-related-documents',
-    'us_classifications': '/us-patent-grant/us-bibliographic-data-grant/classification-national',
-    'ipcr_classifications': '/us-patent-grant/us-bibliographic-data-grant/classifications-ipcr/classification-ipcr',
-    'claims': '/us-patent-grant/claims/claim'
-}
+from lxml import etree
+from lib.handlers.handler import PatentHandler
+
+class Patent(PatentHandler):
+
+    def __init__(self, root):
+        root = root.xpath('/us-patent-grant')[0]
+        xpaths = {
+            'assignee_list': '/us-patent-grant/us-bibliographic-data-grant/assignees/assignee',
+            'citation_list': '/us-patent-grant/us-bibliographic-data-grant/us-references-cited/us-citation',
+            'inventor_list': '/us-patent-grant/us-bibliographic-data-grant/us-parties/inventors/inventor',
+            'lawyer_list': '/us-patent-grant/us-bibliographic-data-grant/us-parties/agents/agent',
+            'us_relation_list': '/us-patent-grant/us-bibliographic-data-grant/us-related-documents',
+            'us_classifications': '/us-patent-grant/us-bibliographic-data-grant/classification-national',
+            'ipcr_classifications': '/us-patent-grant/us-bibliographic-data-grant/classifications-ipcr/classification-ipcr',
+            'claims': '/us-patent-grant/claims/claim'
+        }
+        self.country = root.xpath('us-bibliographic-data-grant/publication-reference/document-id/country')[0].text
+        self.patent = root.xpath('us-bibliographic-data-grant/publication-reference/document-id/doc-number')[0].text
+        self.kind = root.xpath('us-bibliographic-data-grant/publication-reference/document-id/kind')[0].text
+        self.date_grant = root.xpath('us-bibliographic-data-grant/publication-reference/document-id/date')[0].text
+        self.pat_type = root.xpath('us-bibliographic-data-grant/application-reference')[0].get('appl-type')
+        self.date_app = root.xpath('us-bibliographic-data-grant/application-reference/document-id/date')[0].text
+        self.country_app = root.xpath('us-bibliographic-data-grant/application-reference/document-id/country')[0].text
+        self.patent_app = root.xpath('us-bibliographic-data-grant/application-reference/document-id/doc-number')[0].text
+        self.code_app = root.xpath('us-bibliographic-data-grant/us-application-series-code')[0].text
+        self.clm_num = root.xpath('us-bibliographic-data-grant/number-of-claims')[0].text
+        self.abstract = ''.join([el.text for el in root.xpath('abstract/p')])
+        self.invention_title = ''.join([el.text for el in root.xpath('us-bibliographic-data-grant/invention-title')])
+
+        print(self.__dict__)
+
 
 def parse_file(file_name):
     parser = etree.XMLParser()
@@ -33,7 +43,7 @@ def parse_file(file_name):
         parse_document(parser.close()) #parse the last file
 
 def parse_document(root):
-    print(etree.tostring(root))
+    doc = Patent(root)
 
 if __name__ == '__main__':
-    parse_document("ipg140415_short.xml")
+    parse_file("ipg140415_short.xml")
