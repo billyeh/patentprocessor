@@ -159,16 +159,14 @@ def join(newfile):
     s = ses_gen()
     old = s.execute('select uuid, inventor_id from rawinventor where inventor_id != "";')
     old = pd.DataFrame.from_records(old.fetchall())
-    old[0] = old[0].astype(str)
-    merged = pd.merge(new,old,on=0,how='left')
-    merged.to_csv('disambiguator_{0}.tsv'.format(datetime.now().strftime('%B_%d')), index=False, header=None, sep='\t')
+    if not old.empty:
+        old[0] = old[0].astype(str)
+        merged = pd.merge(new,old,on=0,how='left')
+        merged.to_csv('disambiguator_{0}.tsv'.format(datetime.now().strftime('%B_%d')), index=False, header=None, sep='\t')
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-      print "Provide path to previous disambiguation output"
-      print "USAGE: python consolidate.py <path/to/old/disambiguation/output.tsv>"
-      sys.exit(1)
-    prev_output = sys.argv[1]
+    if len(sys.argv) == 2:
+      prev_output = sys.argv[1]
     for year in range(1975, datetime.today().year+1):
         print 'Running year',year,datetime.now(),'for grant'
         main(year, 'grant')

@@ -210,12 +210,17 @@ def run_disambiguation():
     rawassignees = list(grtsesh.query(RawAssignee))
     rawassignees.extend(list(appsesh.query(App_RawAssignee)))
     # clear the destination tables
-    if alchemy.is_mysql():
-        grtsesh.execute('truncate assignee; truncate patent_assignee;')
-        appsesh.execute('truncate assignee; truncate application_assignee;')
-    else:
-        grtsesh.execute('delete from assignee; delete from patent_assignee;')
-        appsesh.execute('delete from assignee; delete from patent_assignee;')
+    try:
+        if alchemy.is_mysql():
+            grtsesh.execute('truncate assignee; truncate patent_assignee;')
+            appsesh.execute('truncate assignee; truncate application_assignee;')
+        else:
+            grtsesh.execute('delete from assignee;')
+            grtsesh.execute('delete from patent_assignee;')
+            appsesh.execute('delete from assignee;')
+            appsesh.execute('delete from patent_assignee;')
+    except:
+        pass
     print 'cleaning ids', datetime.now()
     # uses the get_cleanid method to remove undesirable characters and
     # normalize to case and group by first letter
@@ -259,6 +264,8 @@ def run_disambiguation():
       f.write(str(len(grant_rawassignee_updates))+'\n')
       f.write(str(len(app_rawassignee_updates))+'\n')
     # insert disambiguated assignee records
+    grtsesh.close()
+    appsesh.close()
     bulk_commit_inserts(grant_assignee_inserts, Assignee.__table__, alchemy.is_mysql(), 20000, 'grant')
     bulk_commit_inserts(app_assignee_inserts, App_Assignee.__table__, alchemy.is_mysql(), 20000, 'application')
     # insert patent/assignee link records

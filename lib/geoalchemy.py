@@ -440,7 +440,6 @@ def find_difficult_locations_from_file(inputfilename, outputfilename):
     print datetime.datetime.now()-t
 
 if __name__=='__main__':
-    global doctype
     doctype='grant'
     main(doctype='grant')
     doctype = 'application'

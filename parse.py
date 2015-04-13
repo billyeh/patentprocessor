@@ -102,20 +102,20 @@ def extract_xml_strings(filename):
     is returned for every valid XML doc in [filename]
     """
     # search for terminating XML tag
-    endtag_regex = re.compile('^<!DOCTYPE (.*) SYSTEM')
-    endtag = ''
+    begin_tag = "<us-patent-grant"
+    end_tag = "</us-patent-grant"
+    recording = False
     with open(filename, 'r') as f:
-        doc = ''  # (re)initialize current XML doc to empty string
+        doc = []
         for line in f:
-            doc += line
-            endtag = endtag_regex.findall(line) if not endtag else endtag
-            if not endtag:
-                continue
-            terminate = re.compile('^</{0}>'.format(endtag[0]))
-            if terminate.findall(line):
-                yield (_get_date(filename), doc)
-                endtag = ''
-                doc = ''
+            if line.startswith(begin_tag):
+                recording = True
+            if recording:
+                doc.append(line)
+            if line.startswith(end_tag):
+                recording = False
+                yield(_get_date(filename), ''.join(doc))
+                doc = []
 
 
 def parse_files(filelist, doctype='grant'):
