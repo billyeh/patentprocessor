@@ -1,94 +1,116 @@
 #!/usr/bin/env python
-"""
-Copyright (c) 2013 The Regents of the University of California, AMERICAN INSTITUTES FOR RESEARCH
-All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-"""
-@author Gabe Fierro gt.fierro@berkeley.edu github.com/gtfierro
-"""
-
-"""
-Uses the extended ContentHandler from xml_driver to extract the needed fields
-from patent grant documents
-"""
-
-from cStringIO import StringIO
-from datetime import datetime
-from unidecode import unidecode
-from handler import Patobj, PatentHandler
-import re
 import uuid
-import xml.sax
-import xml_util
-import xml_driver
+from datetime import datetime
+import unicodedata
+import lxml
+import re
 
-claim_num_regex = re.compile(r'^\d+\. *') # removes claim number from claim text
+"""
+Things to normalize:
+- dates
+- names
+- remove empty strings and dictionaries 
+    {k: v for k, v in asg.items()}
+    if any(asg.values()) or any(loc.values()) minus uuid and sequence
+- doc-number
+- remove unnecessary fields, like nationality?
+"""
 
+from lxml import etree
+from lib.handlers.handler import PatentHandler
+
+def stringify_children(node):
+    from lxml.etree import tostring
+    s = [node.text]
+    for c in node.getchildren():
+        s.append(c.text)
+        s.append(c.tail)
+    return ''.join(filter(None, s))
+
+def findtext(elem, path):
+    return elem.findtext(path, default="")
+
+def log(err):
+    print(err)
+
+def validate_patent(patent):
+
+    def validate_date(date):
+        if not re.search('^\d{6}', date):
+            log('error in date: {0}'.format(date))
+    def validate_country(country):
+        if not re.search('^[A-Z]{2}$', country):
+            log('error in country: {0}'.format(country))
+    def validate_docnum(num):
+        if not re.search('^[A-Z]{0,2}\d{6,8}$', num):
+            log('error in patent: {0}'.format(num))
+    def validate_kind(kind):
+        if not re.search('^[A-Z]\d$', kind):
+            log('error in kind: {0}'.format(kind))
+    def validate_type(t):
+        if not t in ('design utility reissue defensive publication statutory invention registration plant'):
+            log('error in type: {0}'.format(t))
+    def validate_code_app(ca):
+        if not re.search('^\d{1,2}$', ca):
+            log('error in code app: {0}'.format(ca))
+    def validate_clm_num(c):
+        if not re.search('^\d*$', c):
+            log('error in code app: {0}'.format(c))
+    def validate_asg_type(t):
+        if not re.search('^0\d$', t):
+            log('error in code app: {0}'.format(t))
+    def validate_info(info):
+        validate_country(info['nationality'])
+        validate_asg_type(info['type'])
+    def validate_location(loc):
+        return
+    def validate_assignees(assignees):
+        for asg, loc in assignees:
+            validate_info(asg)
+            validate_location(loc)
+
+    validate_country(patent.country)
+    validate_docnum(patent.patent)
+    validate_kind(patent.kind)
+    validate_date(patent.date_grant)
+    validate_type(patent.pat_type)
+    validate_date(patent.date_app)
+    validate_country(patent.country_app)
+    validate_docnum(patent.patent_app)
+    validate_code_app(patent.code_app)
+    validate_clm_num(patent.clm_num)
+    validate_assignees(patent.assignee_list)
 
 class Patent(PatentHandler):
-
-    def __init__(self, xml_string, is_string=False):
-        xh = xml_driver.XMLHandler()
-        parser = xml_driver.make_parser()
-
-        parser.setContentHandler(xh)
-        parser.setFeature(xml_driver.handler.feature_external_ges, False)
-        l = xml.sax.xmlreader.Locator()
-        xh.setDocumentLocator(l)
-        if is_string:
-            parser.parse(StringIO(xml_string))
-        else:
-            parser.parse(xml_string)
-
+    def __init__(self, docstring, as_string=True):
+        root = etree.fromstring(docstring)
         self.attributes = ['pat','app','assignee_list','patent','inventor_list','lawyer_list',
                      'us_relation_list','us_classifications','ipcr_classifications',
                      'citation_list','claims']
-
-        self.xml = xh.root.us_patent_grant
-
-        self.country = self.xml.publication_reference.contents_of('country', upper=False)[0]
-        self.patent = xml_util.normalize_document_identifier(self.xml.publication_reference.contents_of('doc_number')[0])
-        self.kind = self.xml.publication_reference.contents_of('kind')[0]
-        self.date_grant = self.xml.publication_reference.contents_of('date')[0]
-        if self.xml.application_reference:
-            self.pat_type = self.xml.application_reference[0].get_attribute('appl-type', upper=False)
-        else:
-            self.pat_type = None
-        self.date_app = self.xml.application_reference.contents_of('date')[0]
-        self.country_app = self.xml.application_reference.contents_of('country')[0]
-        self.patent_app = self.xml.application_reference.contents_of('doc_number')[0]
-        self.code_app = self.xml.contents_of('us_application_series_code')[0]
-        self.clm_num = self.xml.contents_of('number_of_claims')[0]
-        self.abstract = xh.root.us_patent_grant.abstract.contents_of('p', '', as_string=True, upper=False)
-        self.invention_title = self._invention_title()
-
+        try:
+            self.root = root.xpath('/us-patent-grant')[0]
+        except:
+            pass
+        self.country = findtext(root, 'us-bibliographic-data-grant/publication-reference/document-id/country')
+        self.patent = findtext(root, 'us-bibliographic-data-grant/publication-reference/document-id/doc-number').lstrip('0')
+        self.kind = findtext(root, 'us-bibliographic-data-grant/publication-reference/document-id/kind')
+        self.date_grant = findtext(root, 'us-bibliographic-data-grant/publication-reference/document-id/date')
+        self.pat_type = root.xpath('us-bibliographic-data-grant/application-reference')[0].get('appl-type')
+        self.date_app = findtext(root, 'us-bibliographic-data-grant/application-reference/document-id/date')
+        self.country_app = findtext(root, 'us-bibliographic-data-grant/application-reference/document-id/country')
+        self.patent_app = findtext(root, 'us-bibliographic-data-grant/application-reference/document-id/doc-number').lstrip('0')
+        self.code_app = findtext(root, 'us-bibliographic-data-grant/us-application-series-code')
+        self.clm_num = findtext(root, 'us-bibliographic-data-grant/number-of-claims')
+        self.abstract = ''.join([stringify_children(el) for el in root.findall('abstract/p')])
+        self.invention_title = ''.join([stringify_children(el) for el in root.findall('us-bibliographic-data-grant/invention-title')])
+        
         self.pat = {
             "id": self.patent,
             "type": self.pat_type,
             "number": self.patent,
             "country": self.country,
-            "date": self._fix_date(self.date_grant),
+            "date": self.fix_date(self.date_grant),
             "abstract": self.abstract,
             "title": self.invention_title,
             "kind": self.kind,
@@ -98,38 +120,11 @@ class Patent(PatentHandler):
             "type": self.code_app,
             "number": self.patent_app,
             "country": self.country_app,
-            "date": self._fix_date(self.date_app)
+            "date": self.fix_date(self.date_app),
+            "id": str(self.date_app)[:4] + "/" + self.patent_app
         }
-        self.app["id"] = str(self.app["date"])[:4] + "/" + self.app["number"]
 
-    def _invention_title(self):
-        original = self.xml.contents_of('invention_title', upper=False)[0]
-        if isinstance(original, list):
-            original = ''.join(original)
-        return original
-
-    def _name_helper(self, tag_root):
-        """
-        Returns dictionary of firstname, lastname with prefix associated
-        with lastname
-        """
-        firstname = tag_root.contents_of('first_name', as_string=True, upper=False)
-        lastname = tag_root.contents_of('last_name', as_string=True, upper=False)
-        return xml_util.associate_prefix(firstname, lastname)
-
-    def _name_helper_dict(self, tag_root):
-        """
-        Returns dictionary of firstname, lastname with prefix associated
-        with lastname
-        """
-        firstname = tag_root.contents_of('first_name', as_string=True, upper=False)
-        lastname = tag_root.contents_of('last_name', as_string=True, upper=False)
-        return {'name_first': firstname, 'name_last': lastname}
-
-    def _fix_date(self, datestring):
-        """
-        Converts a number representing YY/MM to a Date
-        """
+    def fix_date(self, datestring):
         if not datestring:
             return None
         elif datestring[:4] < "1900":
@@ -146,311 +141,162 @@ class Patent(PatentHandler):
             print inst, datestring
             return None
 
+    def extract_location(self, addr):
+        loc = {}
+        loc['city'] = findtext(addr, './/city')
+        loc['state'] = findtext(addr, './/state')
+        loc['country'] = findtext(addr, './/country')
+        loc['id'] = (u"|".join([loc['city'], loc['state'], loc['country']]).lower())
+        return loc
+
+    def extract_info(self, addr):
+        asg = {}
+        asg['name_first'] = findtext(addr, './/first-name')
+        asg['name_last'] = findtext(addr, './/last-name')
+        asg['organization'] = findtext(addr, './/orgname')
+        asg['type'] = findtext(addr, './/role')
+        asg['nationality'] = findtext(addr, './/address/country')
+        asg['residence'] = findtext(addr, './/address/country')
+        asg['uuid'] = str(uuid.uuid1())
+        return asg
+
+    def extract_doc(self, doc):
+        d = {}
+        d['country'] = findtext(doc, './/country')
+        d['kind'] = findtext(doc, './/kind')
+        d['date'] = self.fix_date(findtext(doc, './/date'))
+        d['number'] = findtext(doc, './/doc-number').lstrip('0')
+        d['category'] = findtext(doc, './/category')
+        d['uuid'] = str(uuid.uuid1())
+        return d
+
+    def extract_class(self, cl):
+        c = {}
+        text = cl.text
+        c['class'] = text[:3].replace(' ', '')
+        c['subclass'] = text[3:].replace(' ', '')
+        return [{'uuid': str(uuid.uuid1())},
+                {'id': c['class'].upper()},
+                {'id': "{class}/{subclass}".format(**c).upper()}]
+
     @property
     def assignee_list(self):
-        """
-        Returns list of dictionaries:
-        assignee:
-          name_last
-          name_first
-          residence
-          nationality
-          organization
-          type
-          sequence
-        location:
-          id
-          city
-          state
-          country
-        """
-        assignees = self.xml.assignees.assignee
-        if not assignees:
-            return []
-        res = []
-        for i, assignee in enumerate(assignees):
-            # add assignee data
-            asg = {}
-            asg.update(self._name_helper_dict(assignee))  # add firstname, lastname
-            asg['organization'] = assignee.contents_of('orgname', as_string=True, upper=False)
-            asg['type'] = str(int(assignee.contents_of('role', as_string=True)))
-            asg['nationality'] = assignee.nationality.contents_of('country')[0]
-            asg['residence'] = assignee.nationality.contents_of('country')[0]
-            # add location data for assignee
-            loc = {}
-            for tag in ['city', 'state', 'country']:
-                loc[tag] = assignee.contents_of(tag, as_string=True, upper=False)
-            #this is created because of MySQL foreign key case sensitivities
-            loc['id'] = unidecode(u"|".join([loc['city'], loc['state'], loc['country']]).lower())
-            if any(asg.values()) or any(loc.values()):
-                asg['sequence'] = i
-                asg['uuid'] = str(uuid.uuid1())
-                res.append([asg, loc])
-        return res
+        assignees = []
+        for i, assignee in enumerate(self.root.findall('us-bibliographic-data-grant/assignees/assignee')):
+            a, l = (self.extract_info(assignee), self.extract_location(assignee))
+            a['sequence'] = i
+            assignees.append([a, l])
+        return assignees
 
     @property
     def citation_list(self):
-        """
-        Returns a list of two lists. The first list is normal citations,
-        the second is other citations.
-        citation:
-          date
-          name
-          kind
-          country
-          category
-          number
-          sequence
-        OR
-        otherreference:
-          text
-          sequence
-        """
-        citations = self.xml.us_references_cited.us_citation
-        if not citations:
-            return [[], []]
         regular_cits = []
         other_cits = []
         ocnt = 0
         ccnt = 0
-        for citation in citations:
+        for citation in self.root.findall('us-bibliographic-data-grant/us-references-cited/us-citation'):
             data = {}
-            if citation.othercit:
-                data['text'] = citation.contents_of('othercit', as_string=True, upper=False)
-                if any(data.values()):
-                    data['sequence'] = ocnt
-                    data['uuid'] = str(uuid.uuid1())
-                    other_cits.append(data)
-                    ocnt += 1
+            othercit = findtext(citation, './/othercit')
+            if othercit:
+                data['text'] = othercit
+                data['sequence'] = ocnt
+                data['uuid'] = str(uuid.uuid1())
+                other_cits.append(data)
+                ocnt += 1
             else:
-                for tag in ['kind', 'category']:
-                    data[tag] = citation.contents_of(tag, as_string=True, upper=False)
-                data['date'] = self._fix_date(citation.contents_of('date', as_string=True))
-                data['country'] = citation.contents_of('country', default=[''])[0]
-                doc_number = citation.contents_of('doc_number', as_string=True)
-                data['number'] = xml_util.normalize_document_identifier(doc_number)
-                if any(data.values()):
-                    data['sequence'] = ccnt
-                    data['uuid'] = str(uuid.uuid1())
-                    regular_cits.append(data)
-                    ccnt += 1
+                data = self.extract_doc(citation)
+                data['sequence'] = ccnt
+                regular_cits.append(data)
+                ccnt += 1
         return [regular_cits, other_cits]
 
     @property
     def inventor_list(self):
-        """
-        Returns list of lists of inventor dictionary and location dictionary
-        inventor:
-          name_last
-          name_first
-          sequence
-        location:
-          id
-          city
-          state
-          country
-        """
-        inventors = self.xml.inventors.inventor
-        if not inventors:
-            return []
-        res = []
-        for i, inventor in enumerate(inventors):
-            # add inventor data
-            inv = {}
-            inv.update(self._name_helper_dict(inventor.addressbook))
-            # add location data for inventor
-            loc = {}
-            for tag in ['city', 'state', 'country']:
-                loc[tag] = inventor.addressbook.contents_of(tag, as_string=True, upper=False)
-            #this is created because of MySQL foreign key case sensitivities
-            loc['id'] = unidecode("|".join([loc['city'], loc['state'], loc['country']]).lower())
-            if any(inv.values()) or any(loc.values()):
-                inv['sequence'] = i
-                inv['uuid'] = str(uuid.uuid1())
-                res.append([inv, loc])
-        return res
+        inventors = []
+        for i, inventor in enumerate(self.root.findall('us-bibliographic-data-grant/us-parties/inventors/inventor')):
+            inve = inventor.find('addressbook')
+            inv, loc = (self.extract_info(inve), self.extract_location(inve))
+            inv['sequence'] = i
+            inventors.append([inv, loc])
+        return inventors
 
     @property
     def lawyer_list(self):
-        """
-        Returns a list of lawyer dictionary
-        lawyer:
-            name_last
-            name_first
-            organization
-            country
-            sequence
-        """
-        lawyers = self.xml.agents.agent
-        if not lawyers:
-            return []
-        res = []
-        for i, lawyer in enumerate(lawyers):
-            law = {}
-            law.update(self._name_helper_dict(lawyer))
-            law['country'] = lawyer.contents_of('country', as_string=True)
-            law['organization'] = lawyer.contents_of('orgname', as_string=True, upper=False)
-            law['organization_upper'] = law['organization'].upper()
-            if any(law.values()):
-                law['uuid'] = str(uuid.uuid1())
-                res.append(law)
-        return res
-
-    def _get_doc_info(self, root):
-        """
-        Accepts an XMLElement root as an argument. Returns list of
-        [country, doc-number, kind, date] for the given root
-        """
-        res = {}
-        for tag in ['country', 'kind', 'date']:
-            data = root.contents_of(tag)
-            res[tag] = data[0] if data else ''
-        res['number'] = xml_util.normalize_document_identifier(
-            root.contents_of('doc_number')[0])
-        return res
+        lawyers = []
+        for i, lawyer in enumerate(self.root.findall('us-bibliographic-data-grant/us-parties/agents/agent')):
+            law = lawyer.find('addressbook')
+            l = self.extract_info(law)
+            l['country'] = findtext(law, './/country')
+            l['sequence'] = i
+            l['organization_upper'] = l['organization'].upper()
+            lawyers.append(l)
+        return lawyers
 
     @property
     def us_relation_list(self):
-        """
-        returns list of dictionaries for us reldoc:
-        usreldoc:
-          doctype
-          status (parent status)
-          date
-          number
-          kind
-          country
-          relationship
-          sequence
-        """
-        root = self.xml.us_related_documents
-        if not root:
-            return []
-        root = root[0]
-        res = []
+        relations = []
         i = 0
-        for reldoc in root.children:
-            if reldoc._name == 'related_publication' or \
-               reldoc._name == 'us_provisional_application':
-                data = {'doctype': reldoc._name}
-                data.update(self._get_doc_info(reldoc))
-                data['date'] = self._fix_date(data['date'])
-                if any(data.values()):
-                    data['sequence'] = i
-                    data['uuid'] = str(uuid.uuid1())
-                    i = i + 1
-                    res.append(data)
-            for relation in reldoc.relation:
-                for relationship in ['parent_doc', 'parent_grant_document',
-                                     'parent_pct_document', 'child_doc']:
-                    data = {'doctype': reldoc._name}
-                    doc = getattr(relation, relationship)
-                    if not doc:
-                        continue
-                    data.update(self._get_doc_info(doc[0]))
-                    data['date'] = self._fix_date(data['date'])
-                    data['status'] = doc[0].contents_of('parent_status', as_string=True)
-                    data['relationship'] = relationship  # parent/child
-                    if any(data.values()):
+        for reldoc in self.root.findall('us-bibliographic-data-grant/us-related-documents'):
+            if reldoc.tag not in ['related-publication', 'us-provisional-application']:
+                pass
+            data = self.extract_doc(reldoc)
+            data['doctype'] = reldoc.tag
+            data['sequence'] = i
+            i += 1
+            relations.append(data)
+            for relation in reldoc.findall('.//relation'):
+                for relationship in ['parent-doc', 'parent-grant-document', 'parent-pct-document', 'child-doc']:
+                    rel = relation.findall(relationship)
+                    for r in rel:
+                        data = self.extract_doc(r)
+                        data['doctype'] = r.tag
+                        data['relationship'] = r.tag
+                        data['status'] = findtext(r, 'parent-status')
                         data['sequence'] = i
-                        data['uuid'] = str(uuid.uuid1())
-                        i = i + 1
-                        res.append(data)
-        return res
+                        i += 1
+                        relations.append(data)
+        return relations
 
     @property
     def us_classifications(self):
-        """
-        Returns list of dictionaries representing us classification
-        main:
-          class
-          subclass
-        """
         classes = []
         i = 0
-        main = self.xml.classification_national.contents_of('main_classification')
-        data = {'class': main[0][:3].replace(' ', ''),
-                'subclass': main[0][3:].replace(' ', '')}
-        if any(data.values()):
-            classes.append([
-                {'uuid': str(uuid.uuid1()), 'sequence': i},
-                {'id': data['class'].upper()},
-                {'id': "{class}/{subclass}".format(**data).upper()}])
-            i = i + 1
-        if self.xml.classification_national.further_classification:
-            further = self.xml.classification_national.contents_of('further_classification')
-            for classification in further:
-                data = {'class': classification[:3].replace(' ', ''),
-                        'subclass': classification[3:].replace(' ', '')}
-                if any(data.values()):
-                    classes.append([
-                        {'uuid': str(uuid.uuid1()), 'sequence': i},
-                        {'id': data['class'].upper()},
-                        {'id': "{class}/{subclass}".format(**data).upper()}])
-                    i = i + 1
+        classifications = [self.root.find('us-bibliographic-data-grant/classification-national/main-classification')] + \
+                self.root.findall('us-bibliographic-data-grant/classification-national/further-classification')
+        for classification in classifications:
+            c = self.extract_class(classification)
+            c[0]['sequence'] = i
+            i += 1
+            classes.append(c)
         return classes
 
     @property
     def ipcr_classifications(self):
-        """
-        Returns list of dictionaries representing ipcr classifications
-        ipcr:
-          ipc_version_indicator
-          classification_level
-          section
-          class
-          subclass
-          main_group
-          subgroup
-          symbol_position
-          classification_value
-          action_date
-          classification_status
-          classification_data_source
-          sequence
-        """
-        ipcr_classifications = self.xml.classifications_ipcr
-        if not ipcr_classifications:
-            return []
-        res = []
-        # we can safely use [0] because there is only one ipcr_classifications tag
-        for i, ipcr in enumerate(ipcr_classifications.classification_ipcr):
+        ipcrs = []
+        for i, ipcr in enumerate(self.root.findall('us-bibliographic-data-grant/classifications-ipcr/classification-ipcr')):
             data = {}
-            for tag in ['classification_level', 'section',
-                        'class', 'subclass', 'main_group', 'subgroup', 'symbol_position',
-                        'classification_value', 'classification_status',
-                        'classification_data_source']:
-                data[tag] = ipcr.contents_of(tag, as_string=True)
-            data['ipc_version_indicator'] = self._fix_date(ipcr.ipc_version_indicator.contents_of('date', as_string=True))
-            data['action_date'] = self._fix_date(ipcr.action_date.contents_of('date', as_string=True))
-            if any(data.values()):
-                data['sequence'] = i
-                data['uuid'] = str(uuid.uuid1())
-                res.append(data)
-        return res
+            for tag in ['classification-level', 'section',
+                        'class', 'subclass', 'main-group', 'subgroup', 'symbol-position',
+                        'classification-value', 'classification-status',
+                        'classification-data-source']:
+                data[tag] = findtext(ipcr, tag)
+            data['ipc_version_indicator'] = self.fix_date(findtext(ipcr, 'ipc-version-indicator/date'))
+            data['action_date'] = self.fix_date(findtext(ipcr, 'action-date/date'))
+            data['sequence'] = i
+            data['uuid'] = str(uuid.uuid1())
+            ipcrs.append(data)
+        return ipcrs
 
     @property
     def claims(self):
-        """
-        Returns list of dictionaries representing claims
-        claim:
-          text
-          dependent -- -1 if an independent claim, else this is the number
-                       of the claim this one is dependent on
-          sequence
-        """
-        claims = self.xml.claim
-        res = []
-        for i, claim in enumerate(claims):
+        claims = []
+        for i, claim in enumerate(self.root.findall('claims/claim/claim-text')):
             data = {}
-            data['text'] = claim.contents_of('claim_text', as_string=True, upper=False)
-            # remove leading claim num from text
-            data['text'] = claim_num_regex.sub('', data['text'])
-            data['sequence'] = i+1 # claims are 1-indexed
-            if claim.claim_ref:
-                # claim_refs are 'claim N', so we extract the N
-                data['dependent'] = int(claim.contents_of('claim_ref',\
-                                        as_string=True).split(' ')[-1])
+            data['text'] = re.compile(r'^\d+\. *').sub('', stringify_children(claim))
             data['uuid'] = str(uuid.uuid1())
-            res.append(data)
-        return res
+            data['sequence'] = i+1 # claims are 1-indexed
+            ref = findtext(claim, 'claim-ref')
+            if ref:
+                data['dependent'] = int(ref.split(' ')[-1])
+            claims.append(data)
+        return claims
