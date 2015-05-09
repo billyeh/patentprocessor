@@ -35,18 +35,19 @@ def log(err):
     print(err)
 
 def validate_patent(patent):
-
-    def validate_date(date):
-        if not re.search('^\d{6}', date):
-            log('error in date: {0}'.format(date))
+    def validate_city(city):
+        if not re.search('^[\',\sa-zA-Z\.\-()]*$', city):
+            log(u'error in city: {0}'.format(city))
+    def validate_state(state):
+        validate_city(state)
     def validate_country(country):
         if not re.search('^[A-Z]{2}$', country):
             log('error in country: {0}'.format(country))
     def validate_docnum(num):
-        if not re.search('^[A-Z]{0,2}\d{6,8}$', num):
-            log('error in patent: {0}'.format(num))
+        if not re.search('^[A-Za-z\d\s\-]*[\-/]?[A-Za-z\d\s\.\-]*$', num):
+            log('error in doc num: {0}'.format(num))
     def validate_kind(kind):
-        if not re.search('^[A-Z]\d$', kind):
+        if not re.search('^[A-Z]\d?$', kind):
             log('error in kind: {0}'.format(kind))
     def validate_type(t):
         if not t in ('design utility reissue defensive publication statutory invention registration plant'):
@@ -56,31 +57,44 @@ def validate_patent(patent):
             log('error in code app: {0}'.format(ca))
     def validate_clm_num(c):
         if not re.search('^\d*$', c):
-            log('error in code app: {0}'.format(c))
+            log('error in claim num: {0}'.format(c))
     def validate_asg_type(t):
         if not re.search('^0\d$', t):
-            log('error in code app: {0}'.format(t))
+            log('error in asignee type: {0}'.format(t))
+    def validate_category(cat):
+        if not cat.startswith('cited by'):
+            log('error in category: {0}'.format(cat))
     def validate_info(info):
         validate_country(info['nationality'])
         validate_asg_type(info['type'])
     def validate_location(loc):
-        return
+        validate_city(loc['city'])
+        validate_state(loc['state'])
+        validate_country(loc['country'])
+    def validate_doc(doc):
+        validate_country(doc['country'])
+        validate_kind(doc['kind'])
+        validate_docnum(doc['number'])
+        validate_category(doc['category'])
     def validate_assignees(assignees):
         for asg, loc in assignees:
             validate_info(asg)
             validate_location(loc)
+    def validate_citations(citations):
+        reg, other = citations
+        for r in reg:
+            validate_doc(r)
 
     validate_country(patent.country)
     validate_docnum(patent.patent)
     validate_kind(patent.kind)
-    validate_date(patent.date_grant)
     validate_type(patent.pat_type)
-    validate_date(patent.date_app)
     validate_country(patent.country_app)
     validate_docnum(patent.patent_app)
     validate_code_app(patent.code_app)
     validate_clm_num(patent.clm_num)
     validate_assignees(patent.assignee_list)
+    validate_citations(patent.citation_list)
 
 class Patent(PatentHandler):
     def __init__(self, docstring, as_string=True):
@@ -123,6 +137,7 @@ class Patent(PatentHandler):
             "date": self.fix_date(self.date_app),
             "id": str(self.date_app)[:4] + "/" + self.patent_app
         }
+        validate_patent(self)
 
     def fix_date(self, datestring):
         if not datestring:
