@@ -15,17 +15,21 @@ from lib.alchemy import session_generator
 
 GRANT = 'grant'
 APP = 'app'
+TOLERANCE = .1 # how many std's the new mean is allowed to deviate from the latest
 
+"""
 client = MongoClient()
 
 db = client.stat_database
+"""
 
 grant_stat = {}
 app_stat = {}
 
+"""
 grant_stats = db.grant_stats
 app_stats = db.app_stats
-#stat_id = stats.insert(stat)
+"""
 
 sessiongen = session_generator(dbtype='grant')
 session = sessiongen()
@@ -73,14 +77,12 @@ d = pd.DataFrame.from_dict({'raw': [patent_count,'',rawinventor_count,rawassigne
                            'labels': ['patent','application','inventor','assignee','lawyer','location']})
 print(d[['labels','raw','disambig']])
 
-# inventors per patent
 res = session.execute('select count(*) from rawinventor group by patent_id;')
 inventor_counts = [x[0] for x in res.fetchall()]
 d = pd.DataFrame.from_dict({'count': inventor_counts})
 printstats(d['count'], 'inventors/patent', GRANT)
 print 'Total:', session.execute('select count(*) from rawinventor;').fetchone()[0]
 
-# patents per inventor
 session = sessiongen()
 res = session.execute('select count(*) from patent_inventor group by inventor_id;')
 patent_counts = [x[0] for x in res.fetchall()]
@@ -100,7 +102,6 @@ d.index = d['states']
 printstats(d['count'], 'inventors/state', GRANT)
 print len(d['states'])
 
-# cities by state
 res = session.execute('select rawlocation.state, count(distinct rawlocation.city) from rawlocation \
                        where rawlocation.country = "US" and length(rawlocation.state) = 2 \
                        group by rawlocation.state')
@@ -110,7 +111,7 @@ d.columns = ['state','count']
 d.index = d['state']
 printstats(d['count'], 'cities/state', GRANT)
 print sum(d['count'])
-# disambiguated
+
 res = session.execute('select location.state, count(distinct location.city) from location \
                        where location.country = "US" and length(location.state) = 2 \
                        group by location.state')
@@ -121,7 +122,6 @@ d.index = d['state']
 printstats(d['count'], 'disambiguated locations/state', GRANT)
 print sum(d['count'])
 
-# patents per state
 res = session.execute("select location.state, count(*) from patent \
                        left join rawinventor on rawinventor.patent_id = patent.id \
                        left join rawlocation on rawlocation.id = rawinventor.rawlocation_id \
@@ -153,13 +153,11 @@ d.index = d['dates']
 printstats(d['count'], 'applications/year', GRANT)
 print sum(d['count'])
 
-# patents per assignee
 res = session.execute('select count(*) from rawassignee group by organization;')
 data = res.fetchall()
 d = pd.DataFrame.from_dict({'count': [int(x[0]) for x in data]})
 printstats(d['count'], 'assignees/organization', GRANT)
 
-# patents per lawyer
 res = session.execute('select count(*) from rawlawyer group by organization;')
 data = res.fetchall()
 d = pd.DataFrame.from_dict({'count': [int(x[0]) for x in data]})
@@ -224,14 +222,12 @@ d = pd.DataFrame.from_dict({'raw': [patent_count,rawinventor_count,rawassignee_c
                            'labels': ['application','inventor','assignee','location']})
 d[['labels','raw','disambig']]
 
-# inventors per patent
 res = session.execute('select count(*) from rawinventor group by application_id;')
 inventor_counts = [x[0] for x in res.fetchall()]
 d = pd.DataFrame.from_dict({'count': inventor_counts})
 printstats(d['count'], 'inventors/application', APP)
 print 'Total:', session.execute('select count(*) from rawinventor;').fetchone()[0]
 
-# applications per inventor
 session = sessiongen()
 res = session.execute('select count(*) from application_inventor group by inventor_id;')
 patent_counts = [x[0] for x in res.fetchall()]
@@ -239,7 +235,6 @@ d = pd.DataFrame.from_dict({'count': patent_counts})
 printstats(d['count'], 'applications/inventor', APP)
 print 'Total:', session.execute('select count(*) from rawinventor;').fetchone()[0]
 
-# identified states
 res = session.execute('select location.state, count(*) from rawinventor \
                        left join rawlocation on rawinventor.rawlocation_id = rawlocation.id \
                        left join location on location.id = rawlocation.location_id \
@@ -252,7 +247,6 @@ d.index = d['states']
 printstats(d['count'], 'inventors/state', APP)
 print len(d['states'])
 
-# cities by state
 res = session.execute('select rawlocation.state, count(distinct rawlocation.city) from rawlocation \
                        where rawlocation.country = "US" and length(rawlocation.state) = 2 \
                        group by rawlocation.state')
@@ -263,7 +257,6 @@ d.index = d['state']
 printstats(d['count'], 'locations/state', APP)
 print sum(d['count'])
 
-# disambiguated cities by state
 res = session.execute('select location.state, count(distinct location.city) from location \
                        where location.country = "US" and length(location.state) = 2 \
                        group by location.state')
@@ -274,7 +267,6 @@ d.index = d['state']
 printstats(d['count'], 'disambiguated locations/state', APP)
 print sum(d['count'])
 
-# applications per state
 res = session.execute("select location.state, count(*) from application \
                        left join rawinventor on rawinventor.application_id = application.id \
                        left join rawlocation on rawlocation.id = rawinventor.rawlocation_id \
@@ -289,7 +281,6 @@ d.index = d['state']
 printstats(d['count'], 'applications/state', APP)
 print sum(d['count'])
 
-# applications per year
 res = session.execute('select year(date), count(*) from application group by year(date);')
 year_counts = map(lambda x: (str(int(x[0])), int(x[1])), res.fetchall())
 d = pd.DataFrame.from_dict({'dates': [x[0] for x in year_counts], 'count': [x[1] for x in year_counts]})
@@ -297,7 +288,6 @@ d.index = d['dates']
 printstats(d['count'], 'applications/year', APP)
 print sum(d['count'])
 
-# applications per assignee
 res = session.execute('select count(*) from rawassignee group by organization;')
 data = res.fetchall()
 d = pd.DataFrame.from_dict({'count': [int(x[0]) for x in data]})
@@ -309,18 +299,18 @@ latest_app_stat = app_stats.find().sort([['_id', -1]]).limit(1).next()
 grant_stats.insert(grant_stat)
 app_stats.insert(app_stat)
 
-def check(name, new_stat, old_stat):
-    if new_stat['mean'] - old_stat['mean'] > .5*old_stat['std']:
-        print('Detected large deviation in ' + name)
+def check_stat(new_stat, old_stat):
+    for name, stat in new_stat.iteritems():
+        if not type(stat) == dict or not 'mean' in new_stat or not 'mean'in old_stat:
+            continue
+        if new_stat['mean'] - old_stat['mean'] > TOLERANCE*old_stat['std']:
+            print('Detected large deviation in ' + name)
 
 if not latest_grant_stat:
     print('No prior grant stats found, comparison check not performed')
 else:
-    for name, stat in grant_stat.iteritems():
-        check(name, stat, latest_grant_stat[name])
+    check_stat(grant_stat, latest_grant_stat)
 if not latest_app_stat:
     print('No prior app stats, found, comparison check not performed')
 else:
-    for name, stat in app_stat in app_state.iteritems():
-        check(name, stat, latest_app_stat[name])
-
+    check_stat(app_stat, latest_app_stat)

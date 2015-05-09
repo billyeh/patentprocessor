@@ -160,7 +160,7 @@ def parse_patent(xmltuple, doctype='grant'):
         date, xml = xmltuple  # extract out the parts of the tuple
         patent = _get_parser(date, doctype).Patent(xml, True)
     except Exception as inst:
-        logging.error(inst)
+        logging.exception(inst)
         logging.error("  - Error parsing patent: %s" % (xml[:400]))
         return
     del xmltuple

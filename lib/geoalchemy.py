@@ -229,6 +229,9 @@ def identify_missing_locations(unidentified_grouped_locations_enum,
                 matching_location = geo_data_session.query(AllCities).filter_by(city=city, country=country).first()
             if not matching_location:
                 print 'Warning: all_cities match attempt failed for', cleaned_location.encode('utf8'), 'location not found'
+            if not geoalchemy_util.region_is_a_state(matching_location.region):
+                matching_location.region = ''
+            matching_location.country = matching_location.country.upper()
             grouping_id = u"{0}|{1}".format(matching_location.latitude, matching_location.longitude)
             raw_location = grouped_location["raw_location"]
             identified_grouped_locations.append({"raw_location": raw_location,

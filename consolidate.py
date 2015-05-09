@@ -153,8 +153,11 @@ def join(newfile):
     round with inventor_ids they were assigned in the previous round of
     disambiguation. This improves the runtime of the inventor disambiguator
     """
-    new = pd.read_csv(newfile,delimiter='\t',header=None, error_bad_lines=False)
-    new[0] = new[0].astype(str)
+    if newfile:
+      new = pd.read_csv(newfile,delimiter='\t',header=None, error_bad_lines=False)
+      new[0] = new[0].astype(str)
+    else:
+      new = pd.DataFrame({})
     ses_gen = alchemy.session_generator(dbtype='grant')
     s = ses_gen()
     old = s.execute('select uuid, inventor_id from rawinventor where inventor_id != "";')
@@ -165,8 +168,7 @@ def join(newfile):
         merged.to_csv('disambiguator_{0}.tsv'.format(datetime.now().strftime('%B_%d')), index=False, header=None, sep='\t')
 
 if __name__ == '__main__':
-    if len(sys.argv) == 2:
-      prev_output = sys.argv[1]
+    prev_output = sys.argv[1] if len(sys.argv) == 2 else None
     for year in range(1975, datetime.today().year+1):
         print 'Running year',year,datetime.now(),'for grant'
         main(year, 'grant')
@@ -175,4 +177,4 @@ if __name__ == '__main__':
         main(year, 'application')
 
     # join files
-    join('disambiguator.csv')
+    join(prev_output)
